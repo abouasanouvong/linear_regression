@@ -3,6 +3,7 @@ from sklearn.model_selection import train_test_split
 from ucimlrepo import fetch_ucirepo
 
 
+
 def run_linear_regression():
 
     print("---- Starting Linear Regression ----")
@@ -24,21 +25,44 @@ def run_linear_regression():
     print(f"Training data size: {len(X_train)} samples")
     print(f"Testing data size: {len(X_test)} samples")
 
+    # Train and get MSE history for plotting
+    X, Y = generate_multi_feature_data()
+    #w, b, mse_history = train_linear_regression(X_train, y_train, 0.01, 1000)
+    w, b, mse_history = train_linear_regression(X, Y, 0.01, 1000)
 
-    train_linear_regression(X_train, y_train, 0.01, 1000)
+    # Plot the learning curve
+    plot_learning_curve(mse_history)
 
+    # Test the model
+    # y_test_pred = predict(X_test, w, b)
+    # test_mse = compute_mse(y_test, y_test_pred)
+    # print(f"\nTest MSE: {test_mse:.4f}")
 
+def plot_learning_curve(mse_history):
+    """Plot the learning curve showing how MSE decreases over epochs"""
+    import matplotlib.pyplot as plt
 
+    plt.figure(figsize=(10, 6))
+    plt.plot(mse_history, 'b-', linewidth=2)
+    plt.title('Learning Curve - MSE vs Epochs', fontsize=14)
+    plt.xlabel('Epoch', fontsize=12)
+    plt.ylabel('Mean Squared Error (MSE)', fontsize=12)
+    plt.grid(True, alpha=0.3)
+    plt.show()
 
+    # Print learning statistics
+    initial_mse = mse_history[0]
+    final_mse = mse_history[-1]
+    improvement = ((initial_mse - final_mse) / initial_mse) * 100
+
+    print(f"\nLearning Statistics:")
+    print(f"Initial MSE: {initial_mse:.6f}")
+    print(f"Final MSE: {final_mse:.6f}")
+    print(f"Improvement: {improvement:.2f}%")
 
 #model =  Y =w1X1 + w2X2 + ... + b
-def predict(x, w, b):
-    x_values = x.values
-    predictions = []
-    for row in x_values:
-        pred = sum(w[i] * row[i] for i in range(len(w))) + b
-        pred = round(pred, 4)
-        predictions.append(pred)
+def predict(X, w, b):
+    predictions = [sum(w[i] * x[i] for i in range(len(x))) + b for x in X]
 
     return predictions
 
@@ -67,31 +91,35 @@ def compute_mse(y_true, y_pred):
 
 def compute_gradient(X, y, y_pred):
     # Convert to numpy arrays for easier computation
-    X_values = X.values
-    if hasattr(y, 'values'):
-        y_values = y.values.flatten()
-    else:
-        y_values = y
+    #X_values = X.values
+    #if hasattr(y, 'values'):
+       # y_values = y.values.flatten()
+    #else:
+        #y_values = y
 
-    m = len(y_values)
-    num_features = X_values.shape[1]
+    N = len(y)
+    num_features = len(X[0])
 
     # Initialize gradients for weights
     dw = [0.0] * num_features
+    db = 0.0  # Gradient for bias
 
     # Compute gradients for each weight
-    for i in range(num_features):
-        dw[i] = -2/m * sum((y_t - y_p) * X_values[j][i] for j, (y_t, y_p) in enumerate(zip(y_values, y_pred)))
+    for i in range(N):
+        error = y[i] - y_pred[i]
+        for j in range(num_features):
+            dw[j] += (-2 / N) * X[i][j] * error
+        db += (-2 / N) * error
 
-    # Compute gradient for bias
-    db = -2/m * sum(y_t - y_p for y_t, y_p in zip(y_values, y_pred))
 
     return dw, db
 
 def train_linear_regression(X, y, learning_rate, epochs):
 
-    w = [0.1] * X.shape[1]  # Initialize weights - X.shape[1] gives number of columns
+    #w = [0.0] * X.shape[1]  # Initialize weights - X.shape[1] gives number of columns
+    w = [0.0] * len(X[0])
     b = 0.0
+    mse_history = []  # Store MSE values for plotting
 
     for epoch in range(epochs):
         #predict
@@ -99,6 +127,7 @@ def train_linear_regression(X, y, learning_rate, epochs):
 
         #compute mse
         mse = compute_mse(y, y_pred)
+        mse_history.append(mse)  # Store MSE for this epoch
 
         #compute gradients
         dw, db = compute_gradient(X, y, y_pred)
@@ -110,10 +139,29 @@ def train_linear_regression(X, y, learning_rate, epochs):
 
         if epoch % 100 == 0:
             print(f'Epoch {epoch}, MSE: {mse:.4f}')
+
     print("Training complete.")
+    print(f"Final MSE: {mse_history[-1]:.4f}")
+
+    return w, b, mse_history  # Return weights, bias, and MSE history
 
 
-
+def generate_multi_feature_data():
+    X = [
+        [1, 2],
+        [2, 3],
+        [3, 4],
+        [4, 5],
+        [5, 6]
+    ]
+    Y = [
+        2 * 1 + 3 * 2 + 5 + 0.1,  # ≈ 13.1
+        2 * 2 + 3 * 3 + 5 - 0.2,  # ≈ 15.8
+        2 * 3 + 3 * 4 + 5 + 0.3,  # ≈ 18.3
+        2 * 4 + 3 * 5 + 5 - 0.1,  # ≈ 20.9
+        2 * 5 + 3 * 6 + 5 + 0.2  # ≈ 23.2
+    ]
+    return X, Y
 
 
 if __name__ == "__main__":
