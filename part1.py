@@ -26,7 +26,7 @@ def run_linear_regression():
     X_selected = X[features_to_exclude]
     X_filtered = X.drop(columns=features_to_exclude)
 
-    plot_data(X, y)
+    plot_data(X_filtered, y)
 
     # 2. Split Data into Training and Testing Sets
     X_train, X_test, y_train, y_test = train_test_split(X_filtered, y, test_size=0.2, random_state=42)
@@ -39,7 +39,25 @@ def run_linear_regression():
     X_train_scaled = scaler.fit_transform(X_train)
     X_train_scaled_df = pd.DataFrame(X_train_scaled, columns=X_train.columns, index=X_train.index)
 
-    train_linear_regression(X_train_scaled_df, y_train, 0.01, 1000)
+    w, b = train_linear_regression(X_train_scaled_df, y_train, 0.001, 10000)
+    print("Weights:", w)
+    print("Bias:", b)
+
+    # Predict on the test set
+    X_test_scaled = scaler.transform(X_test)
+    X_test_scaled_df = pd.DataFrame(X_test_scaled, columns=X_test.columns, index=X_test.index)
+    y_pred_after_train = predict(X_test_scaled_df, w, b)
+    y_pred_after_train_df = pd.DataFrame(y_pred_after_train, columns=['Concrete compressive strength'], index=X_test.index)
+
+    mse_after_train = mean_squared_error(y_test, y_pred_after_train_df)
+    r2_after_train = r2_score(y_test, y_pred_after_train_df)
+    print(f"Mean Squared Error after training: {mse_after_train:.4f}")
+    print(f"R^2 Score after training: {r2_after_train:.4f}")
+
+
+
+
+
 
 
 #model =  Y =w1X1 + w2X2 + ... + b
@@ -100,6 +118,7 @@ def train_linear_regression(X, y, learning_rate, epochs):
             print(f'Epoch {epoch}, MSE: {mse:.4f}, R2: {r2_lr:.4f}')
 
     print("Training complete.")
+    return w, b
 
 def plot_data(X,y):
     df = pd.concat([X, y], axis=1)
