@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import seaborn as sns
 from matplotlib import pyplot as plt
@@ -26,10 +27,14 @@ def run_linear_regression():
     X_selected = X[features_to_exclude]
     X_filtered = X.drop(columns=features_to_exclude)
 
-    plot_data(X_filtered, y)
 
-    # 2. Split Data into Training and Testing Sets
-    X_train, X_test, y_train, y_test = train_test_split(X_filtered, y, test_size=0.2, random_state=42)
+    X_cleaned, Y_cleaned = clean_data(X_filtered, y)
+    plot_data(X_cleaned, Y_cleaned)
+
+
+
+    # 4. Split Data into Training and Testing Sets
+    X_train, X_test, y_train, y_test = train_test_split(X_cleaned, Y_cleaned, test_size=0.2, random_state=42)
 
     print("\n--- Data Split ---")
     print(f"Training data size: {len(X_train)} samples")
@@ -39,7 +44,7 @@ def run_linear_regression():
     X_train_scaled = scaler.fit_transform(X_train)
     X_train_scaled_df = pd.DataFrame(X_train_scaled, columns=X_train.columns, index=X_train.index)
 
-    w, b = train_linear_regression(X_train_scaled_df, y_train, 0.001, 10000)
+    w, b = train_linear_regression(X_train_scaled_df, y_train, 0.01, 1000)
     print("Weights:", w)
     print("Bias:", b)
 
@@ -159,6 +164,90 @@ def plot_data(X,y):
     # --- 6. Show the plot ---
     plt.tight_layout()  # Adjust layout to prevent labels from overlapping
     plt.show()
+
+def clean_data(X, y):
+    print("\n--- Cleaning Data ---")
+    # Variables to be excluded for optimization
+    features_to_exclude = ['Coarse Aggregate', 'Fine Aggregate']
+    X_filtered = X.drop(columns=features_to_exclude)
+
+    # Combine X_filtered(features) and y(target) temporarily for unified cleaning based on index
+    combined_df = pd.concat([X_filtered, y], axis=1)
+
+    print("--- Original X and y Shapes ---")
+    print(f"X shape: {X.shape}")
+    print(f"y shape: {y.shape}")
+    print("\n--- Initial Combined DataFrame Info ---")
+    combined_df.info()
+
+    # Handling Null Values
+    print("\n--- Checking for null values in the dataset, if present remove ---")
+    null_values = combined_df.isnull().sum()
+    if null_values.sum() > 0:
+        print("\n--- Dropping null Values ---")
+        combined_df.dropna(inplace=True)
+
+    # Handling Outliers using IQR (Winsorization/Capping)
+    print("\n--- Outlier Handling (Winsorization using IQR method) ---")
+
+    # Features to apply outlier handling
+    features_to_process = X_filtered.columns
+
+    # Calculate Q1, Q3, and IQR for each numerical column within these specific features
+    Q1 = combined_df[features_to_process].quantile(0.25)
+    Q3 = combined_df[features_to_process].quantile(0.75)
+    IQR = Q3 - Q1
+
+    lower_bound = Q1 - 1.5 * IQR
+    upper_bound = Q3 + 1.5 * IQR
+
+    # Apply Winsorization to the X part of combined_df
+    for column in features_to_process:  # Iterate through the feature column names
+        # Cap values below the lower bound for the current column
+        combined_df[column] = np.where(
+            combined_df[column] < lower_bound[column],  # Access the specific bound using column name
+            lower_bound[column],
+            combined_df[column]
+        )
+        # Cap values above the upper bound for the current column
+        combined_df[column] = np.where(
+            combined_df[column] > upper_bound[column],
+            upper_bound[column],
+            combined_df[column]
+        )
+
+    print("\n--- Combined DataFrame after Winsorization (Outlier Capping) ---")
+    print(combined_df[features_to_process].describe())
+
+    # Checking for Duplicates in the data
+    print("\n--- Duplicate Rows Check ---")
+    duplicate_data = combined_df.duplicated().sum()
+    print(f"Number of duplicate rows: {duplicate_data}")
+
+    if duplicate_data > 0:
+        print(f"Removing {duplicate_data} duplicate rows from combined_df...")
+        combined_df_cleaned = combined_df.drop_duplicates()
+        print(f"Shape after removing duplicates: {combined_df_cleaned.shape}")
+    else:
+        combined_df_cleaned = combined_df.copy()
+        print("No duplicate data found.")
+
+    # Separate X and y again from the cleaned combined_df
+    X_cleaned = combined_df_cleaned[X_filtered.columns]
+    y_cleaned = combined_df_cleaned[y.columns]
+
+    # --- Final Cleaned DataFrames ---
+    print("\n--- Cleaned Features Info ---")
+    print("\t--- Information Extraction ---")
+    X_cleaned.info()
+    print(f"\t--- Descriptive Statistics ---\n{X_cleaned.describe()}")
+
+    print("\n--- Cleaned Target Info ---")
+    print("\t--- Information Extraction ---")
+    y_cleaned.info()
+    print(f"\t--- Descriptive Statistics ---\n{y_cleaned.describe()}")
+
+    return X_cleaned, y_cleaned
 
 if __name__ == "__main__":
     run_linear_regression()
