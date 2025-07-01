@@ -12,7 +12,7 @@ from ucimlrepo import fetch_ucirepo
 def part_two():
     X, y = load_dataset()
 
-    # 2. Split Data into Training and Testing Sets
+    # Split Data into Training and Testing Sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     print("\n--- Data Split ---")
@@ -22,7 +22,7 @@ def part_two():
     run_sgdregression(X_train, X_test, y_train, y_test)
 
 def load_dataset():
-    # 1. Load the California Housing Dataset
+    # Loading the Dataset
     print("\n--- Loading Concrete Compressive Strength Dataset ---")
     try:
         concrete_data = fetch_ucirepo(id=165)
